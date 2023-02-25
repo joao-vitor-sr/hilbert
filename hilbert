@@ -1,0 +1,40 @@
+#!/bin/sh
+
+[ ! -f "$1" ] && printf "The first file should be the math equation, the second should be the output image" && exit
+
+echo "Enter the bacground color: [Empty for black]"; read -r backgroundcolor
+echo "Enter the font color: [Empty for white]"; read -r fontcolor
+echo "Enter the scale [percentual, <percentage divided by 1.0>] (empty for 100)"; read -r scale
+
+tempate_path=/tmp/template.tex
+
+[ -n "$backgroundcolor" ] && sed -i "s/\\pagecolor{black}/\\pagecolor{$backgroundcolor}/g"  $tempate_path
+[ -n "$fontcolor" ] && sed -i -e "s/\\\color{white}/\\\color{$fontcolor}/g"  $tempate_path
+
+[ -z "$scale" ] && scale="1.0"
+
+templatepath="$XDG_DATA_HOME/hilbert/template.tex"
+
+rm -rf /tmp/template.tex
+cp -f "$templatepath" /tmp/template.tex
+
+cat "$1" >> $tempate_path
+printf "\end{document}" >> $tempate_path
+
+# convert latex into .dvi
+latex -output-directory=/tmp -no-shell-escape -interaction=nonstopmode -halt-on-error $tempate_path &&
+dvisvgm --no-fonts --scale="$scale" --exact /tmp/template.dvi
+
+printf "\n<============================================>\n"
+printf "\nsvg saved on %s/template.svg" "$(pwd)"
+
+svg_file=$(pwd)/template.svg
+
+echo "Do you want to convert the svg into a png? (Y/n) [Enter for Y]"; read -r convert_to_png
+
+if [ -z "$convert_to_png" ] || [ "$convert_to_png" = "Y" ] || [ "$convert_to_png" = "y" ]; then
+  convert +antialias "$svg_file" template.png
+
+  printf "\n<============================================>\n"
+  printf "\nsvg converted, the output is at %s/template.png" "$(pwd)"
+fi
